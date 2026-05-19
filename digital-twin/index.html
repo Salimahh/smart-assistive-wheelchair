@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wheelchair Digital Twin — RAIN RDA Cohort 18</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #fff;
+  }
+  h1 {
+    font-size: 15px;
+    letter-spacing: 3px;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    font-weight: normal;
+  }
+  #main {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  #twin-canvas {
+    border: 1px solid #222;
+    border-radius: 10px;
+    display: block;
+  }
+  #panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 180px;
+  }
+  .panel-box {
+    background: #161616;
+    border: 1px solid #222;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .panel-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .tele-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+    line-height: 2;
+  }
+  .tele-row span { color: #eee; font-weight: bold; }
+  #state-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    background: #1a1a1a;
+    color: #888;
+    margin-top: 4px;
+  }
+  /* Joystick display */
+  #joy-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #joy-canvas { display: block; }
+  /* Key hints */
+  .key-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 32px);
+    grid-template-rows: repeat(2, 32px);
+    gap: 3px;
+    justify-content: center;
+  }
+  .key {
+    width: 32px; height: 32px;
+    border: 1px solid #2a2a2a;
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #555;
+    background: #161616;
+    transition: background 0.08s, color 0.08s;
+  }
+  .key.active { background: #1a3a5c; color: #4fc3f7; border-color: #4fc3f7; }
+  .key.blank { border: none; background: transparent; }
+  #src-line { font-size: 10px; color: #444; text-align: center; margin-top: 4px; }
+  #src-line span { color: #4fc3f7; }
+  button {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    color: #666;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+  button:hover { border-color: #4fc3f7; color: #4fc3f7; }
+</style>
+</head>
+<body>
+<h1>Wheelchair Digital Twin &nbsp;/&nbsp; RAIN RDA Cohort 18</h1>
+<div id="main">
+  <canvas id="twin-canvas" width="780" height="520"></canvas>
+  <div id="panel">
+    <div class="panel-box">
+      <div class="panel-label">Telemetry</div>
+      <div class="tele-row">state <span id="t-state">IDLE</span></div>
+      <div class="tele-row">speed <span id="t-spd">0</span>%</div>
+      <div class="tele-row">heading <span id="t-hdg">0</span>°</div>
+      <div class="tele-row">L&nbsp;PWM <span id="t-l">0</span></div>
+      <div class="tele-row">R&nbsp;PWM <span id="t-r">0</span></div>
+    </div>
+
+    <div class="panel-box">
+      <div class="panel-label">Joystick</div>
+      <div id="joy-wrap">
+        <canvas id="joy-canvas" width="100" height="100"></canvas>
+        <div id="src-line">source: <span id="src">keyboard</span></div>
+      </div>
+    </div>
+
+    <div class="panel-box">
+      <div class="panel-label">Controls</div>
+      <div class="key-grid">
+        <div class="key blank"></div>
+        <div class="key" id="k-up">↑</div>
+        <div class="key blank"></div>
+        <div class="key" id="k-left">←</div>
+        <div class="key" id="k-down">↓</div>
+        <div class="key" id="k-right">→</div>
+      </div>
+      <button onclick="resetPos()" style="width:100%;margin-top:10px;">reset position</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('twin-canvas');
+const ctx = canvas.getContext('2d');
+const jc = document.getElementById('joy-canvas');
+const jctx = jc.getContext('2d');
+
+// Load wheelchair image
+const wcImg = new Image();
+wcImg.src = '2dWheelchairView.png';
+
+let wx = 390, wy = 260, wAngle = 0, spd = 0;
+let joyX = 512, joyY = 512;
+const keys = {};
+
+document.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+  keys[e.key] = true;
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function resetPos() { wx = 390; wy = 260; wAngle = 0; spd = 0; }
+
+// WebSocket — auto-connects, falls back to keyboard
+function connectWS() {
+  try {
+    const ws = new WebSocket('ws://localhost:8765');
+    ws.onopen = () => document.getElementById('src').textContent = 'joystick (COM10)';
+    ws.onmessage = e => {
+      const p = e.data.split(',');
+      if (p.length === 2) { joyX = parseInt(p[0]); joyY = parseInt(p[1]); }
+    };
+    ws.onclose = () => {
+      document.getElementById('src').textContent = 'keyboard';
+      setTimeout(connectWS, 3000);
+    };
+    ws.onerror = () => ws.close();
+  } catch(e) {}
+}
+connectWS();
+
+function getInput() {
+  if (document.getElementById('src').textContent.includes('joystick')) {
+    return { x: (joyX - 512) / 512, y: (joyY - 512) / 512 };
+  }
+  return {
+    x: (keys['ArrowRight'] ? 1 : 0) - (keys['ArrowLeft'] ? 1 : 0),
+    y: (keys['ArrowUp'] ? 1 : 0) - (keys['ArrowDown'] ? 1 : 0)
+  };
+}
+
+function drawGrid() {
+  ctx.strokeStyle = '#181818';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 780; i += 40) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 520); ctx.stroke();
+  }
+  for (let j = 0; j <= 520; j += 40) {
+    ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(780, j); ctx.stroke();
+  }
+}
+
+// Draw the wheelchair using the uploaded PNG, scaled and rotated
+const WC_SIZE = 110; // display size in pixels
+function drawWheelchair(cx, cy, angle) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  if (wcImg.complete && wcImg.naturalWidth > 0) {
+    ctx.drawImage(wcImg, -WC_SIZE / 2, -WC_SIZE / 2, WC_SIZE, WC_SIZE);
+  } else {
+    // Fallback shape while image loads
+    ctx.fillStyle = '#c0392b';
+    ctx.fillRect(-20, -30, 40, 60);
+  }
+  // Direction arrow overlay
+  ctx.strokeStyle = 'rgba(79, 195, 247, 0.85)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(0, -WC_SIZE / 2 + 8); ctx.lineTo(0, -WC_SIZE / 2 - 18); ctx.stroke();
+  ctx.fillStyle = '#4fc3f7';
+  ctx.beginPath();
+  ctx.moveTo(0, -WC_SIZE / 2 - 24);
+  ctx.lineTo(-5, -WC_SIZE / 2 - 16);
+  ctx.lineTo(5, -WC_SIZE / 2 - 16);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawJoystick(nx, ny) {
+  jctx.clearRect(0, 0, 100, 100);
+  const cx = 50, cy = 50, r = 38;
+  jctx.strokeStyle = '#2a2a2a'; jctx.lineWidth = 1;
+  jctx.beginPath(); jctx.arc(cx, cy, r, 0, Math.PI * 2); jctx.stroke();
+  jctx.strokeStyle = '#222';
+  jctx.beginPath(); jctx.moveTo(cx - r, cy); jctx.lineTo(cx + r, cy); jctx.stroke();
+  jctx.beginPath(); jctx.moveTo(cx, cy - r); jctx.lineTo(cx, cy + r); jctx.stroke();
+  const px = cx + nx * r, py = cy - ny * r;
+  jctx.fillStyle = '#4fc3f7';
+  jctx.beginPath(); jctx.arc(px, py, 9, 0, Math.PI * 2); jctx.fill();
+}
+
+function updateTelemetry(inp) {
+  const mapY = -inp.y, mapX = inp.x;
+  const L = Math.round(Math.abs(Math.max(-255, Math.min(255, (mapY + mapX) * 255))));
+  const R = Math.round(Math.abs(Math.max(-255, Math.min(255, (mapY - mapX) * 255))));
+  const s = Math.round(Math.abs(inp.y) * 100);
+  const deg = Math.round(((wAngle % (2 * Math.PI)) * 180 / Math.PI + 360) % 360);
+  const dir = Math.abs(inp.y) < 0.04 ? 'IDLE' : inp.y > 0 ? 'FORWARD' : 'REVERSE';
+
+  const el = document.getElementById('t-state');
+  el.textContent = dir;
+  el.style.color = dir === 'IDLE' ? '#555' : dir === 'FORWARD' ? '#4fc3f7' : '#ef9f27';
+
+  document.getElementById('t-spd').textContent = s;
+  document.getElementById('t-hdg').textContent = deg;
+  document.getElementById('t-l').textContent = L;
+  document.getElementById('t-r').textContent = R;
+
+  document.getElementById('k-up').classList.toggle('active', !!keys['ArrowUp']);
+  document.getElementById('k-down').classList.toggle('active', !!keys['ArrowDown']);
+  document.getElementById('k-left').classList.toggle('active', !!keys['ArrowLeft']);
+  document.getElementById('k-right').classList.toggle('active', !!keys['ArrowRight']);
+}
+
+function loop() {
+  const inp = getInput();
+
+  if (Math.abs(inp.y) > 0.04) {
+    spd = inp.y * 5;
+  } else {
+    spd *= 0.85;
+  }
+
+  wx += Math.sin(wAngle) * spd;
+  wy -= Math.cos(wAngle) * spd;
+
+  if (Math.abs(inp.x) > 0.04) wAngle += inp.x * 0.045;
+
+  wx = Math.max(60, Math.min(720, wx));
+  wy = Math.max(60, Math.min(460, wy));
+
+  ctx.clearRect(0, 0, 780, 520);
+  drawGrid();
+  drawWheelchair(wx, wy, wAngle);
+  drawJoystick(inp.x, inp.y);
+  updateTelemetry(inp);
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
