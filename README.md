@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/cover.jpg" alt="Smart Assistive Wheelchair" width="100%">
+  <img src="docs/images/cover.png" alt="Smart Assistive Wheelchair" width="100%">
 </p>
 
 <h1 align="center">🦽 Smart Assistive Wheelchair</h1>
@@ -152,9 +152,9 @@ smart-assistive-wheelchair/
     <td align="center"><strong>Electronics & wiring</strong></td>
   </tr>
   <tr>
-    <td><img src="docs/images/welding.jpg" alt="Welding" width="250"/></td>
-    <td><img src="docs/images/fabrication.jpg" alt="Fabrication" width="250"/></td>
-    <td><img src="docs/images/wiring.jpg" alt="Wiring" width="250"/></td>
+    <td><img src="docs/images/welding.jpeg" alt="Welding" width="250"/></td>
+    <td><img src="docs/images/fabrication.jpeg" alt="Fabrication" width="250"/></td>
+    <td><img src="docs/images/wiring.jpeg" alt="Wiring" width="250"/></td>
   </tr>
   <tr>
     <td align="center"><strong>Component testing</strong></td>
@@ -162,8 +162,8 @@ smart-assistive-wheelchair/
     <td align="center"><strong>Digital Twin (live)</strong></td>
   </tr>
   <tr>
-    <td><img src="docs/images/testing.jpg" alt="Testing" width="250"/></td>
-    <td><img src="docs/images/presentation.jpg" alt="Presentation" width="250"/></td>
+    <td><img src="docs/images/testing.jpeg" alt="Testing" width="250"/></td>
+    <td><img src="docs/images/presentation.jpeg" alt="Presentation" width="250"/></td>
     <td><img src="docs/images/digital-twin.png" alt="Digital Twin" width="250"/></td>
   </tr>
 </table>
