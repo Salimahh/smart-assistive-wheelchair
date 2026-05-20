@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://smart-wheelchair-twin.onrender.com"><strong>🖥️ Live Digital Twin Demo</strong></a> &nbsp;·&nbsp;
+  <a href="https://smart-assistive-wheelchair.onrender.com"><strong>🖥️ Live Digital Twin Demo</strong></a> &nbsp;·&nbsp;
   <a href="https://www.linkedin.com/posts/salimat-akinwande_roboticsprojects-progress-learninginpublic-ugcPost-7461374283613745152-ERyA"><strong>📝 Project Story (LinkedIn)</strong></a> &nbsp;·&nbsp;
   <a href="https://salimahh.github.io"><strong>🌐 Portfolio</strong></a>
 </p>
@@ -118,7 +118,7 @@ A real-time 2D simulation that mirrors joystick input via serial → WebSocket �
 Arduino (joystick) → Serial USB → Python/pyserial → WebSocket → index.html (Canvas)
 ```
 
-**[→ Try the live demo](https://smart-wheelchair-twin.onrender.com)**
+**[→ Try the live demo](https://smart-assistive-wheelchair.onrender.com)**
 
 ---
 
